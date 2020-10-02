@@ -13,18 +13,22 @@ down_dir = "Anime Wallpapers/"
 allow_nsfw = False
 also_mobile = False
 try_emoji = False
+only_mobile = False
 
 if sys.argv.__contains__("--allow-nsfw"):
     allow_nsfw = True
-if sys.argv.__contains__("--mobile"):
+if sys.argv.__contains__("--also-mobile"):
     also_mobile = True
 if sys.argv.__contains__("--try-emoji"):
     try_emoji = True
+if sys.argv.__contains__("--only-mobile"):
+    only_mobile = True
 
 if sys.argv.__contains__("--help"):
     print("Possible Arguments:")
     print("         --allow-nsfw: Allow NSFW WP downloads")
-    print("         --allow-mobile: Allow mobile WP downloads")
+    print("         --also-mobile: Allow mobile WP downloads")
+    print("         --only-mobile: Only allow mobile WP downloads")
     print("         --try-emoji: Try to save files with emoji in the name")
     print("                      (Explodes badly in Windows)")
     exit(0)
@@ -69,28 +73,41 @@ for _ in post_list:
 
     img_json = _.get('data')
     if not try_emoji:
-        img_title = emoji_be_gone(img_json.get('title'))
+        img_title = emoji_be_gone(img_json.get('title').replace('/', " ").replace(':', " ").replace("\"", "\'"))
     else:
         img_title = img_json.get('title')
+    img_link = img_json.get('url')
 
     if img_json.get('over_18') and not allow_nsfw:
         print(img_title + " is marked with NSFW. Not downloading.")
         continue
 
-    if img_json.get('link_flair_text') == 'Mobile' and not also_mobile:
+    if (img_json.get('link_flair_text') == 'Mobile' and not also_mobile) and not only_mobile:
         print(img_title + " is for mobile. Not downloading.")
         continue
 
     elif img_title + ".png" in existing_files:
         print(img_title + " already exists.")
+        continue
+
+    elif only_mobile:
+        if img_json.get('link_flair_text') != 'Mobile':
+            print(img_title + " isn't for mobile. Not downloading.")
+            continue
+        else:
+            try:
+                with open(img_title + ".png", 'wb') as handle:
+                    img = requests.get(img_link).content
+                    handle.write(img)
+                    print(img_title + ".png" + " successfully downloaded")
+            except OSError:
+                print('Can\'t save ' + img_title + '. Weird')
 
     else:
-        img_name = img_json.get('title')
-        img_link = img_json.get('url')
         try:
-            with open(str(img_name) + ".png", 'wb') as handle:
+            with open(img_title + ".png", 'wb') as handle:
                 img = requests.get(img_link).content
                 handle.write(img)
-
+                print(img_title + ".png" + " successfully downloaded")
         except OSError:
-            print('Can\'t save ' + img_name + '. Weird')
+            print('Can\'t save ' + img_title + '. Weird')
