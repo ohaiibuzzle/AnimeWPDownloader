@@ -1,16 +1,53 @@
+#!/usr/bin/python3
+
 import os
 import requests
 import re
+import sys
 
 # Change these to your liking. Should work fine for everything.
 
 reddit_loc = "https://www.reddit.com/r/Animewallpaper/new.json"
 down_dir = "Anime Wallpapers/"
-allow_nsfw = False
-also_mobile = True
 
-def emoji_be_gone(inputString):
-    return inputString.encode('ascii', 'ignore').decode('ascii')
+allow_nsfw = False
+also_mobile = False
+try_emoji = False
+
+if sys.argv.__contains__("--allow-nsfw"):
+    allow_nsfw = True
+if sys.argv.__contains__("--mobile"):
+    also_mobile = True
+if sys.argv.__contains__("--try-emoji"):
+    try_emoji = True
+
+if sys.argv.__contains__("--help"):
+    print("Possible Arguments:")
+    print("         --allow-nsfw: Allow NSFW WP downloads")
+    print("         --allow-mobile: Allow mobile WP downloads")
+    print("         --try-emoji: Try to save files with emoji in the name")
+    print("                      (Explodes badly in Windows)")
+    exit(0)
+
+def emoji_be_gone(inputString: str):
+    emoji_pattern = re.compile("["
+                               u"\U0001F600-\U0001F64F"  # emoticons
+                               u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+                               u"\U0001F680-\U0001F6FF"  # transport & map symbols
+                               u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                               u"\U0001F1F2-\U0001F1F4"  # Macau flag
+                               u"\U0001F1E6-\U0001F1FF"  # flags
+                               u"\U0001F600-\U0001F64F"
+                               u"\U00002702-\U000027B0"
+                               u"\U000024C2-\U0001F251"
+                               u"\U0001f926-\U0001f937"
+                               u"\U0001F1F2"
+                               u"\U0001F1F4"
+                               u"\U0001F620"
+                               u"\u200d"
+                               u"\u2640-\u2642"
+                               "]+", flags=re.UNICODE)
+    return emoji_pattern.sub(r'', inputString)
 
 
 request_header = {
@@ -31,7 +68,10 @@ post_list = anime_new.get('data').get('children')
 for _ in post_list:
 
     img_json = _.get('data')
-    img_title = emoji_be_gone(img_json.get('title').replace("\"", ""))
+    if not try_emoji:
+        img_title = emoji_be_gone(img_json.get('title'))
+    else:
+        img_title = img_json.get('title')
 
     if img_json.get('over_18') and not allow_nsfw:
         print(img_title + " is marked with NSFW. Not downloading.")
