@@ -122,7 +122,7 @@ for _ in post_list:
     img_title = filename_fix(img_title)
     img_link = img_json.get('url')
 
-    if not img_link.startswith("https://i.redd.it"):
+    if not img_link.endswith(".png"):
         print(img_title + " is not an image. Not downloading.")
         continue
 
