@@ -3,37 +3,62 @@
 import os
 import requests
 import re
-import sys
+import argparse
+from platform import system
 
 # Change these to your liking. Should work fine for everything.
 
-reddit_loc = "https://www.reddit.com/r/Animewallpaper/new.json"
-down_dir = "Anime Wallpapers/"
+parser = argparse.ArgumentParser('Command Line Arguments')
+parser.add_argument('--allow-nsfw', help="Allow NSFW WP downloads", action='store_true')
+parser.add_argument('--emoji-filename', help="Save files with emoji in the name", action='store_true')
+parser.add_argument('--subreddit', type=str, help="Use a different subreddit (Use at own risk)",
+                    default="https://www.reddit.com/r/Animewallpaper/")
+parser.add_argument('--down-dir', type=str, help="Directory to download to",
+                    default="Downloads/")
 
-allow_nsfw = False
-also_mobile = False
-try_emoji = False
-only_mobile = False
+mb_gr = parser.add_argument_group('Mobile downloading options', '(Only really work on r/Animewallpaper)')
+mobile_opts = mb_gr.add_mutually_exclusive_group()
+mobile_opts.add_argument('--also-mobile', help="Allow mobile WP downloads", action='store_true')
+mobile_opts.add_argument('--only-mobile', help="Only allow mobile WP downloads", action='store_true')
 
-if sys.argv.__contains__("--allow-nsfw"):
-    allow_nsfw = True
-if sys.argv.__contains__("--also-mobile"):
-    also_mobile = True
-if sys.argv.__contains__("--try-emoji"):
-    try_emoji = True
-if sys.argv.__contains__("--only-mobile"):
-    only_mobile = True
+rd_gr = parser.add_argument_group('Sorting options')
+reddit_opts = rd_gr.add_mutually_exclusive_group()
 
-if sys.argv.__contains__("--help"):
-    print("Possible Arguments:")
-    print("         --allow-nsfw: Allow NSFW WP downloads")
-    print("         --also-mobile: Allow mobile WP downloads")
-    print("         --only-mobile: Only allow mobile WP downloads")
-    print("         --try-emoji: Try to save files with emoji in the name")
-    print("                      (Explodes badly in Windows)")
-    exit(0)
+reddit_opts.add_argument('--new', help='Get new posts (default)', action='store_true', default=True)
+reddit_opts.add_argument('--hot', help='Get hot posts', action='store_true')
+reddit_opts.add_argument('--rising', help='Get rising posts', action='store_true')
+reddit_opts.add_argument('--top-today', help='Get top of the day posts', action='store_true')
+reddit_opts.add_argument('--top-week', help='Get top of the week posts', action='store_true')
+reddit_opts.add_argument('--top-month', help='Get top of the month posts', action='store_true')
+reddit_opts.add_argument('--top-year', help='Get top of the year posts', action='store_true')
+reddit_opts.add_argument('--top-all', help='Get all time posts', action='store_true')
 
-def emoji_be_gone(inputString: str):
+args = parser.parse_args()
+
+down_dir = args.down_dir
+base_url = args.subreddit
+
+reddit_loc = ""
+
+if args.new:
+    reddit_loc = base_url + "new.json"
+elif args.hot:
+    reddit_loc = base_url + "hot.json"
+elif args.rising:
+    reddit_loc = base_url + "rising.json"
+elif args.top_today:
+    reddit_loc = base_url + "top.json/?t=day"
+elif args.top_week:
+    reddit_loc = base_url + "top.json/?t=week"
+elif args.top_month:
+    reddit_loc = base_url + "top.json/?t=month"
+elif args.top_year:
+    reddit_loc = base_url + "top.json/?t=year"
+elif args.top_all:
+    reddit_loc = base_url + "top.json/?t=all"
+
+
+def emoji_be_gone(input_string):
     emoji_pattern = re.compile("["
                                u"\U0001F600-\U0001F64F"  # emoticons
                                u"\U0001F300-\U0001F5FF"  # symbols & pictographs
@@ -51,11 +76,28 @@ def emoji_be_gone(inputString: str):
                                u"\u200d"
                                u"\u2640-\u2642"
                                "]+", flags=re.UNICODE)
-    return emoji_pattern.sub(r'', inputString)
+    return emoji_pattern.sub(r'', input_string)
+
+
+def filename_fix(input_string: str):
+    if system() == "Windows":
+        return input_string.replace('/', " ") \
+            .replace("\\", "") \
+            .replace(':', " ") \
+            .replace("\"", "\'") \
+            .replace("<", "\'") \
+            .replace(">", "\'") \
+            .replace("|", "\'") \
+            .replace("?", " ") \
+            .replace("*", "\'")
+    # Windows sucks
+    else:
+        return input_string.replace('/', " ")
 
 
 request_header = {
-    'User-Agent': 'Mozilla/5.0 (Wayland; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36'
+    'User-Agent': 'Mozilla/5.0 (Wayland; Linux x86_64) AppleWebKit/537.36\
+     (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36'
 }
 
 if os.path.exists(down_dir):
@@ -72,17 +114,23 @@ post_list = anime_new.get('data').get('children')
 for _ in post_list:
 
     img_json = _.get('data')
-    if not try_emoji:
-        img_title = emoji_be_gone(img_json.get('title').replace('/', " ").replace(':', " ").replace("\"", "\'"))
+    if not args.emoji_filename:
+        img_title = emoji_be_gone(img_json.get('title'))
     else:
         img_title = img_json.get('title')
+
+    img_title = filename_fix(img_title)
     img_link = img_json.get('url')
 
-    if img_json.get('over_18') and not allow_nsfw:
+    if not img_link.startswith("https://i.redd.it"):
+        print(img_title + " is not an image. Not downloading.")
+        continue
+
+    if img_json.get('over_18') and not args.allow_nsfw:
         print(img_title + " is marked with NSFW. Not downloading.")
         continue
 
-    if (img_json.get('link_flair_text') == 'Mobile' and not also_mobile) and not only_mobile:
+    if (img_json.get('link_flair_text') == 'Mobile' and not args.also_mobile) and not args.only_mobile:
         print(img_title + " is for mobile. Not downloading.")
         continue
 
@@ -90,7 +138,7 @@ for _ in post_list:
         print(img_title + " already exists.")
         continue
 
-    elif only_mobile:
+    elif args.only_mobile:
         if img_json.get('link_flair_text') != 'Mobile':
             print(img_title + " isn't for mobile. Not downloading.")
             continue
