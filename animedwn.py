@@ -122,7 +122,7 @@ for _ in post_list:
     img_title = filename_fix(img_title)
     img_link = img_json.get('url')
 
-    if not img_link.endswith(".png"):
+    if not (img_link.endswith(".png") or img_link.endswith(".jpg")):
         print(img_title + " is not an image. Not downloading.")
         continue
 
@@ -138,24 +138,52 @@ for _ in post_list:
         print(img_title + " already exists.")
         continue
 
+    elif img_title + ".jpg" in existing_files:
+        print(img_title + " already exists.")
+        continue
+
     elif args.only_mobile:
         if img_json.get('link_flair_text') != 'Mobile':
             print(img_title + " isn't for mobile. Not downloading.")
             continue
         else:
+            if img_link.endswith(".png"):
+                try:
+                    with open(img_title + ".png", 'wb') as handle:
+                        img = requests.get(img_link).content
+                        handle.write(img)
+                        print(img_title + ".png" + " successfully downloaded")
+                        continue
+                except OSError:
+                    print('Can\'t save ' + img_title + '. Weird')
+            elif img_link.endswith(".jpg"):
+                try:
+                    with open(img_title + ".jpg", 'wb') as handle:
+                        img = requests.get(img_link).content
+                        handle.write(img)
+                        print(img_title + ".jpg" + " successfully downloaded")
+                        continue
+                except OSError:
+                    print('Can\'t save ' + img_title + '. Weird')
+                    continue
+
+    else:
+        if img_link.endswith(".png"):
             try:
                 with open(img_title + ".png", 'wb') as handle:
                     img = requests.get(img_link).content
                     handle.write(img)
                     print(img_title + ".png" + " successfully downloaded")
+                    continue
             except OSError:
                 print('Can\'t save ' + img_title + '. Weird')
-
-    else:
-        try:
-            with open(img_title + ".png", 'wb') as handle:
-                img = requests.get(img_link).content
-                handle.write(img)
-                print(img_title + ".png" + " successfully downloaded")
-        except OSError:
-            print('Can\'t save ' + img_title + '. Weird')
+        elif img_link.endswith(".jpg"):
+            try:
+                with open(img_title + ".jpg", 'wb') as handle:
+                    img = requests.get(img_link).content
+                    handle.write(img)
+                    print(img_title + ".jpg" + " successfully downloaded")
+                    continue
+            except OSError:
+                print('Can\'t save ' + img_title + '. Weird')
+                continue
