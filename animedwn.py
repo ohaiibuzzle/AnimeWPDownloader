@@ -5,6 +5,7 @@ import requests
 import re
 import argparse
 from platform import system
+import multiprocessing
 
 def emoji_be_gone(input_string):
     emoji_pattern = re.compile("["
@@ -42,6 +43,65 @@ def filename_fix(input_string: str):
     else:
         return input_string.replace('/', " ")
 
+
+def downloader(post, args, existing_files):
+    img_json = post.get('data')
+    if not args.emoji_filename:
+        img_title = emoji_be_gone(img_json.get('title'))
+    else:
+        img_title = img_json.get('title')
+
+    img_title = filename_fix(img_title)
+    img_link = img_json.get('url')
+
+    if not (img_link.endswith(".png") or img_link.endswith(".jpg")):
+        print(img_title + " is not an image. Not downloading.")
+    if img_json.get('over_18') and not args.allow_nsfw:
+        print(img_title + " is marked with NSFW. Not downloading.")
+    if (img_json.get('link_flair_text') == 'Mobile' and not args.also_mobile) and not args.only_mobile:
+        print(img_title + " is for mobile. Not downloading.")
+    elif img_title + ".png" in existing_files:
+        print(img_title + " already exists.")
+    elif img_title + ".jpg" in existing_files:
+        print(img_title + " already exists.")
+    elif args.only_mobile:
+        if img_json.get('link_flair_text') != 'Mobile':
+            print(img_title + " isn't for mobile. Not downloading.")
+        else:
+            if img_link.endswith(".png"):
+                try:
+                    with open(img_title + ".png", 'wb') as handle:
+                        img = requests.get(img_link).content
+                        handle.write(img)
+                        print(img_title + ".png" + " successfully downloaded")
+                except OSError:
+                    print('Can\'t save ' + img_title + '. Weird')
+            elif img_link.endswith(".jpg"):
+                try:
+                    with open(img_title + ".jpg", 'wb') as handle:
+                        img = requests.get(img_link).content
+                        handle.write(img)
+                        print(img_title + ".jpg" + " successfully downloaded")
+                except OSError:
+                    print('Can\'t save ' + img_title + '. Weird')
+    else:
+        if img_link.endswith(".png"):
+            try:
+                with open(img_title + ".png", 'wb') as handle:
+                    img = requests.get(img_link).content
+                    handle.write(img)
+                    print(img_title + ".png" + " successfully downloaded")
+            except OSError:
+                print('Can\'t save ' + img_title + '. Weird')
+        elif img_link.endswith(".jpg"):
+            try:
+                with open(img_title + ".jpg", 'wb') as handle:
+                    img = requests.get(img_link).content
+                    handle.write(img)
+                    print(img_title + ".jpg" + " successfully downloaded")
+            except OSError:
+                print('Can\'t save ' + img_title + '. Weird')
+    
 
 def main():
     parser = argparse.ArgumentParser('Command Line Arguments')
@@ -110,84 +170,14 @@ def main():
     anime_new = requests.get(reddit_loc, headers=request_header).json()
     post_list = anime_new.get('data').get('children')
 
+    jobs = []
     for _ in post_list:
-
-        img_json = _.get('data')
-        if not args.emoji_filename:
-            img_title = emoji_be_gone(img_json.get('title'))
-        else:
-            img_title = img_json.get('title')
-
-        img_title = filename_fix(img_title)
-        img_link = img_json.get('url')
-
-        if not (img_link.endswith(".png") or img_link.endswith(".jpg")):
-            print(img_title + " is not an image. Not downloading.")
-            continue
-
-        if img_json.get('over_18') and not args.allow_nsfw:
-            print(img_title + " is marked with NSFW. Not downloading.")
-            continue
-
-        if (img_json.get('link_flair_text') == 'Mobile' and not args.also_mobile) and not args.only_mobile:
-            print(img_title + " is for mobile. Not downloading.")
-            continue
-
-        elif img_title + ".png" in existing_files:
-            print(img_title + " already exists.")
-            continue
-            
-        elif img_title + ".jpg" in existing_files:
-            print(img_title + " already exists.")
-            continue
-
-        elif args.only_mobile:
-            if img_json.get('link_flair_text') != 'Mobile':
-                print(img_title + " isn't for mobile. Not downloading.")
-                continue
-            else:
-                if img_link.endswith(".png"):
-                    try:
-                        with open(img_title + ".png", 'wb') as handle:
-                            img = requests.get(img_link).content
-                            handle.write(img)
-                            print(img_title + ".png" + " successfully downloaded")
-                            continue
-                    except OSError:
-                        print('Can\'t save ' + img_title + '. Weird')
-                        continue
-                elif img_link.endswith(".jpg"):
-                    try:
-                        with open(img_title + ".jpg", 'wb') as handle:
-                            img = requests.get(img_link).content
-                            handle.write(img)
-                            print(img_title + ".jpg" + " successfully downloaded")
-                            continue
-                    except OSError:
-                        print('Can\'t save ' + img_title + '. Weird')
-                        continue
-
-        else:
-            if img_link.endswith(".png"):
-                try:
-                    with open(img_title + ".png", 'wb') as handle:
-                        img = requests.get(img_link).content
-                        handle.write(img)
-                        print(img_title + ".png" + " successfully downloaded")
-                        continue
-                except OSError:
-                    print('Can\'t save ' + img_title + '. Weird')
-                    continue
-            elif img_link.endswith(".jpg"):
-                try:
-                    with open(img_title + ".jpg", 'wb') as handle:
-                        img = requests.get(img_link).content
-                        handle.write(img)
-                        print(img_title + ".jpg" + " successfully downloaded")
-                        continue
-                except OSError:
-                    print('Can\'t save ' + img_title + '. Weird')
-                    continue
+        p = multiprocessing.Process(target=downloader, args=(_, args, existing_files))
+        jobs.append(p)
+        p.start()
+        
+    for _ in jobs:
+        _.join()
 
 if __name__ == '__main__':
     main()
