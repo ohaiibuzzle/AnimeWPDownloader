@@ -5,7 +5,7 @@ import requests
 import re
 import argparse
 from platform import system
-import multiprocessing
+from concurrent.futures.thread import ThreadPoolExecutor
 
 def emoji_be_gone(input_string):
     emoji_pattern = re.compile("["
@@ -125,6 +125,7 @@ def main():
                         default="https://www.reddit.com/r/Animewallpaper/")
     parser.add_argument('--down-dir', type=str, help="Directory to download to",
                         default="Downloads/")
+    parser.add_argument('-n', '--thread-count', type=int, help="Number of concurrent threads", default=10)
 
     mb_gr = parser.add_argument_group('Mobile downloading options', '(Only really work on r/Animewallpaper)')
     mobile_opts = mb_gr.add_mutually_exclusive_group()
@@ -184,14 +185,12 @@ def main():
     anime_new = requests.get(reddit_loc, headers=request_header).json()
     post_list = anime_new.get('data').get('children')
 
-    jobs = []
+    pool = ThreadPoolExecutor(args.thread_count)
     for _ in post_list:
-        p = multiprocessing.Process(target=downloader, args=(_, args, existing_files))
-        jobs.append(p)
-        p.start()
+        arg = [_, args, down_dir]
+        pool.submit(lambda p: downloader(*p), arg)
         
-    for _ in jobs:
-        _.join()
+    pool.shutdown(True)
 
 if __name__ == '__main__':
     main()
