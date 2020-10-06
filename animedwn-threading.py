@@ -200,7 +200,7 @@ def main():
             pool.submit(lambda p: downloader(*p), arg)
             last_post = _.get('data').get('name')
             post_count += 1
-            print('Scheduled download for post number:' + str(post_count))
+            # print('Scheduled download for post number:' + str(post_count))
         sub_loc = reddit_loc + "&after=" + last_post 
             
     pool.shutdown(True)
