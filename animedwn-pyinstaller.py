@@ -77,21 +77,21 @@ def main():
     reddit_loc = ""
 
     if args.new:
-        reddit_loc = base_url + "new.json"
+        reddit_loc = base_url + "new.json" + "?limit=100"
     elif args.hot:
-        reddit_loc = base_url + "hot.json"
+        reddit_loc = base_url + "hot.json" + "?limit=100"
     elif args.rising:
-        reddit_loc = base_url + "rising.json"
+        reddit_loc = base_url + "rising.json" + "?limit=100"
     elif args.top_today:
-        reddit_loc = base_url + "top.json/?t=day"
+        reddit_loc = base_url + "top.json/?t=day" + "&?limit=100"
     elif args.top_week:
-        reddit_loc = base_url + "top.json/?t=week"
+        reddit_loc = base_url + "top.json/?t=week" + "&?limit=100"
     elif args.top_month:
-        reddit_loc = base_url + "top.json/?t=month"
+        reddit_loc = base_url + "top.json/?t=month" + "&?limit=100"
     elif args.top_year:
-        reddit_loc = base_url + "top.json/?t=year"
+        reddit_loc = base_url + "top.json/?t=year" + "&?limit=100"
     elif args.top_all:
-        reddit_loc = base_url + "top.json/?t=all"
+        reddit_loc = base_url + "top.json/?t=all" + "&?limit=100"
 
 
     request_header = {

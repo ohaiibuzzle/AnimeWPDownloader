@@ -125,7 +125,9 @@ def main():
                         default="https://www.reddit.com/r/Animewallpaper/")
     parser.add_argument('--down-dir', type=str, help="Directory to download to",
                         default="Downloads/")
-    parser.add_argument('-n', '--thread-count', type=int, help="Number of concurrent threads", default=10)
+    parser.add_argument('-t', '--thread-count', type=int, help="Number of concurrent threads (default: 10)", default=10)
+    parser.add_argument('-n', '--post-count', type=int, help="Number of post to download (default: 25)", default=25)
+
 
     mb_gr = parser.add_argument_group('Mobile downloading options', '(Only really work on r/Animewallpaper)')
     mobile_opts = mb_gr.add_mutually_exclusive_group()
@@ -181,17 +183,26 @@ def main():
         os.chdir(down_dir)
 
     existing_files = os.listdir()
-    last_before = ""
 
-    anime_new = requests.get(reddit_loc, headers=request_header).json()
-    last_before
-    post_list = anime_new.get('data').get('children')
-
+    last_post = ""
+    post_count = 0
     pool = ThreadPoolExecutor(args.thread_count)
-    for _ in post_list:
-        arg = [_, args, down_dir]
-        pool.submit(lambda p: downloader(*p), arg)
-        
+
+    sub_loc = reddit_loc
+
+    while post_count < args.post_count:
+        page = requests.get(sub_loc, headers=request_header).json()
+        post_list = page.get('data').get('children')
+        for _ in post_list:
+            if post_count >= args.post_count:
+                break
+            arg = [_, args, existing_files]
+            pool.submit(lambda p: downloader(*p), arg)
+            last_post = _.get('data').get('name')
+            post_count += 1
+            print('Scheduled download for post number:' + str(post_count))
+        sub_loc = reddit_loc + "&after=" + last_post 
+            
     pool.shutdown(True)
 
 if __name__ == '__main__':
