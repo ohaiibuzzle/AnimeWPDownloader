@@ -125,7 +125,9 @@ def main():
                         default="https://www.reddit.com/r/Animewallpaper/")
     parser.add_argument('--down-dir', type=str, help="Directory to download to",
                         default="Downloads/")
-    parser.add_argument('-n', '--thread-count', type=int, help="Number of concurrent threads", default=10)
+    parser.add_argument('-t', '--thread-count', type=int, help="Number of concurrent threads (default: 10)", default=10)
+    parser.add_argument('-n', '--post-count', type=int, help="Number of post to download (default: 25)", default=25)
+
 
     mb_gr = parser.add_argument_group('Mobile downloading options', '(Only really work on r/Animewallpaper)')
     mobile_opts = mb_gr.add_mutually_exclusive_group()
@@ -152,21 +154,21 @@ def main():
     reddit_loc = ""
 
     if args.new:
-        reddit_loc = base_url + "new.json"
+        reddit_loc = base_url + "new.json" + "?limit=100"
     elif args.hot:
-        reddit_loc = base_url + "hot.json"
+        reddit_loc = base_url + "hot.json" + "?limit=100"
     elif args.rising:
-        reddit_loc = base_url + "rising.json"
+        reddit_loc = base_url + "rising.json" + "?limit=100"
     elif args.top_today:
-        reddit_loc = base_url + "top.json/?t=day"
+        reddit_loc = base_url + "top.json/?t=day" + "&?limit=100"
     elif args.top_week:
-        reddit_loc = base_url + "top.json/?t=week"
+        reddit_loc = base_url + "top.json/?t=week" + "&?limit=100"
     elif args.top_month:
-        reddit_loc = base_url + "top.json/?t=month"
+        reddit_loc = base_url + "top.json/?t=month" + "&?limit=100"
     elif args.top_year:
-        reddit_loc = base_url + "top.json/?t=year"
+        reddit_loc = base_url + "top.json/?t=year" + "&?limit=100"
     elif args.top_all:
-        reddit_loc = base_url + "top.json/?t=all"
+        reddit_loc = base_url + "top.json/?t=all" + "&?limit=100"
 
 
     request_header = {
@@ -182,14 +184,25 @@ def main():
 
     existing_files = os.listdir()
 
-    anime_new = requests.get(reddit_loc, headers=request_header).json()
-    post_list = anime_new.get('data').get('children')
-
+    last_post = ""
+    post_count = 0
     pool = ThreadPoolExecutor(args.thread_count)
-    for _ in post_list:
-        arg = [_, args, down_dir]
-        pool.submit(lambda p: downloader(*p), arg)
-        
+
+    sub_loc = reddit_loc
+
+    while post_count < args.post_count:
+        page = requests.get(sub_loc, headers=request_header).json()
+        post_list = page.get('data').get('children')
+        for _ in post_list:
+            if post_count >= args.post_count:
+                break
+            arg = [_, args, existing_files]
+            pool.submit(lambda p: downloader(*p), arg)
+            last_post = _.get('data').get('name')
+            post_count += 1
+            # print('Scheduled download for post number:' + str(post_count))
+        sub_loc = reddit_loc + "&after=" + last_post 
+            
     pool.shutdown(True)
 
 if __name__ == '__main__':
